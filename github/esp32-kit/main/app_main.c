@@ -272,7 +272,7 @@ void app_main()
 	ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
 	ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 	OLED_Init();
-
+	OLED_Print("PROMRAM START...");
 	xKeyQueue = xQueueCreate(10, sizeof(eKey_t));
 	vUI_SetKeyQueue(&xKeyQueue);
 	vUI_Init();

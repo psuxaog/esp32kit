@@ -7,8 +7,22 @@
 
 #include "kitui.h"
 #include "string.h"
+#include "soc/timer_group_struct.h"
+#include "driver/periph_ctrl.h"
+#include "driver/timer.h"
+#include "esp_system.h"
 #define TAG "UITask"
 static xQueueHandle *xKey_Queue;
+esp_timer_handle_t timerHandle = NULL;
+static void timerPeriodicCb(void *arg);
+esp_timer_create_args_t timerPeriodicArg =
+{ .callback = &timerPeriodicCb, .arg = NULL, .name = "Timer" };
+#define TIMER_DIVIDER         16  //  Hardware timer clock divider
+#define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
+#define TIMER_INTERVAL0_SEC   (3.4179) // sample test interval for the first timer
+#define TIMER_INTERVAL1_SEC   (5.78)   // sample test interval for the second timer
+#define TEST_WITHOUT_RELOAD   0        // testing will be done without auto reload
+#define TEST_WITH_RELOAD      1        // testing will be done with auto reload
 
 static eKey_t eGetKey(void)
 {
@@ -33,7 +47,7 @@ static eKey_t eGetKey(void)
 	{
 		valCur |= 2;
 	}
-	eKey = eKeyNone;
+	eKey = eKeyNone; // @suppress("Symbol is not resolved")
 	if (valCur != valFilt)
 	{
 		cntFilt++;
@@ -65,7 +79,7 @@ static eKey_t eGetKey(void)
 					}
 					if ((valOld & 0x03) == 0x03)
 					{
-						eKey = eKeyAllRelease;
+						eKey = eKeyAllRelease; // @suppress("Symbol is not resolved")
 					}
 				}
 				flagLongPressed = 0;
@@ -87,7 +101,7 @@ static eKey_t eGetKey(void)
 				}
 				if ((valFilt & 0x03) == 0x03)
 				{
-					eKey = eKeyAllPress;
+					eKey = eKeyAllPress; // @suppress("Symbol is not resolved")
 				}
 			}
 			oldReleased = 0;
@@ -113,7 +127,7 @@ static eKey_t eGetKey(void)
 				}
 				if ((valFilt & 0x03) == 0x03)
 				{
-					eKey = eKeyAllLong;
+					eKey = eKeyAllLong; // @suppress("Symbol is not resolved")
 				}
 			}
 		}
@@ -129,79 +143,59 @@ void vUI_Task(void *parm)
 {
 	TickType_t xkeyTick;
 	eKey_t eKey;
-	uint8_t updated = 0;
 	xkeyTick = xTaskGetTickCount();
 	for (;;)
 	{
 		eKey = eGetKey();
-		if (eKey != eKeyNone)
+		if (eKey != eKeyNone) // @suppress("Symbol is not resolved")
 		{
 			xQueueSend(*xKey_Queue, &eKey, NULL);
 		}
-		vTaskDelayUntil(&xkeyTick, (10 / portTICK_RATE_MS));
+		vTaskDelayUntil(&xkeyTick, (10 / portTICK_RATE_MS)); // @suppress("Symbol is not resolved")
 	}
 }
 void vUI_SetKeyQueue(xQueueHandle *queue)
 {
 	xKey_Queue = queue;
 }
-static void IRAM_ATTR key_isr_handler(void *arg)
+eKey_t const eKeys[] =
+{ eKeyWheelInc, eKeyWheelDec, eKeyWheelDec, eKeyWheelInc, };
+static void timerPeriodicCb(void *arg)
 {
-	uint32_t gpio_num = (uint32_t) arg;
-	eKey_t eKey = eKeyNone;
-	uint8_t stateA = 0;
-	uint8_t stateB = 0;
-	if (gpio_num == WHEEL_IO_A)
+	eKey_t eKey = eKeyNone; // @suppress("Symbol is not resolved")
+	static uint8_t cntFilter = 0;
+	static uint8_t keyOld = 0;
+	uint8_t keyCur = 0;
+	keyCur = gpio_get_level(WHEEL_IO_B);
+	keyCur <<= 1;
+	keyCur |= gpio_get_level(WHEEL_IO_A);
+	if (keyCur != keyOld)
 	{
-		stateA = gpio_get_level(WHEEL_IO_A);
-		stateB = gpio_get_level(WHEEL_IO_B);
-		if (stateA)
+		cntFilter++;
+		if (cntFilter > 10)
 		{
-			if (stateB)
+			if ((keyOld & 0x01) != (keyCur & 0x01))
 			{
-				eKey = eKeyWheelDec;
+				eKey = eKeys[keyOld & 0x03];
+				if (eKey != eKeyNone) // @suppress("Symbol is not resolved")
+				{
+					xQueueSendFromISR(*xKey_Queue, &eKey, NULL);
+				}
 			}
-			else
-			{
-				eKey = eKeyWheelInc;
-			}
-		}
-		else
-		{
-			if (stateB)
-			{
-				eKey = eKeyWheelInc;
-			}
-			else
-			{
-				eKey = eKeyWheelDec;
-			}
+			keyOld = keyCur;
 		}
 	}
 	else
 	{
-		eKey = eKeyNone;
-	}
-	if (eKey != eKeyNone)
-	{
-		xQueueSendFromISR(*xKey_Queue, &eKey, NULL);
+		cntFilter = 0;
 	}
 }
-#define GPIO_INPUT_PIN_SEL  (1ULL << WHEEL_IO_A)
 void vUI_Init(void)
 {
-	gpio_config_t io_conf;
 	gpio_set_direction(WHEEL_IO_A, GPIO_MODE_INPUT);
 	gpio_set_direction(WHEEL_IO_B, GPIO_MODE_INPUT);
 	gpio_set_direction(WHEEL_IO_BTN, GPIO_MODE_INPUT);
 	gpio_set_direction(KEY_IO, GPIO_MODE_INPUT);
-	io_conf.intr_type = GPIO_PIN_INTR_ANYEDGE;
-	io_conf.mode = GPIO_MODE_INPUT;
-	io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
-	io_conf.pull_up_en = 1;
-	gpio_config(&io_conf);
-	gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
-	gpio_isr_handler_add(WHEEL_IO_A, key_isr_handler, (void*) WHEEL_IO_A);
-
-//	return xKey_Queue;
+	ESP_ERROR_CHECK(esp_timer_create(&timerPeriodicArg, &timerHandle));
+	ESP_ERROR_CHECK(esp_timer_start_periodic(timerHandle, 100));
 }

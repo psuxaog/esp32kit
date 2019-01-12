@@ -26,8 +26,7 @@
 static const char *TAG = "MQTT_KIT";
 static void smartconfig_example_task(void *param);
 static EventGroupHandle_t wifi_event_group;
-uint8_t phone_ip[4] =
-{ 0 };
+uint8_t phone_ip[4] = { 0 };
 const int IPV4_GOTIP_BIT = BIT0;
 const int IPV6_GOTIP_BIT = BIT1;
 const int CONNECTED_BIT = BIT2;
@@ -257,8 +256,7 @@ void smartconfig_example_task(void *parm)
 	while (1)
 	{
 		uxBits = xEventGroupWaitBits(wifi_event_group,
-				CONNECTED_BIT | ESPTOUCH_DONE_BIT, true,
-				false,
+				CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false,
 				portMAX_DELAY);
 		if (uxBits & CONNECTED_BIT)
 		{
@@ -290,11 +288,13 @@ static void mqtt_app_start(void)
 
 void app_main()
 {
+	OLED_Init();
 	ESP_LOGI(TAG, "[APP] Startup..");
 	ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
 	ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
-	OLED_Init();
-	OLED_Print("SYSTEM START...");
+	OLED_Print("Startup...");
+	OLED_Print("Free MEM:%d bytes",esp_get_free_heap_size());
+	OLED_Print("IDF version: %s", esp_get_idf_version());
 	xKeyQueue = xQueueCreate(1, sizeof(eKey_t));
 	vUI_SetKeyQueue(&xKeyQueue);
 	vUI_Init();

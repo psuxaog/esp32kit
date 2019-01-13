@@ -242,66 +242,42 @@ static void ui_process_task(void *parm)
 				}
 				break;
 			case eKeyLeftInc:
-				if (red < (255 - 10))
+				if (red < 255)
 				{
-					red += 10;
-				}
-				else if (red < 255)
-				{
-					red++;
+					red ++;
 				}
 				lightState = 1;
 				break;
 			case eKeyLeftDec:
-				if (red > 10)
+				if (red > 0)
 				{
-					red -= 10;
-				}
-				else if (red > 0)
-				{
-					red--;
+					red --;
 				}
 				lightState = 1;
 				break;
 			case eKeyRightInc:
-				if (green < (255 - 10))
-				{
-					green += 10;
-				}
-				else if (green < 255)
+				if (green < 255)
 				{
 					green++;
 				}
 				lightState = 1;
 				break;
 			case eKeyRightDec:
-				if (green > 10)
-				{
-					green -= 10;
-				}
-				else if (green > 0)
+				if (green > 0)
 				{
 					green--;
 				}
 				lightState = 1;
 				break;
 			case eKeyUpInc:
-				if (blue < (255 - 10))
-				{
-					blue += 10;
-				}
-				else if (blue < 255)
+				if (blue < 255)
 				{
 					blue++;
 				}
 				lightState = 1;
 				break;
 			case eKeyUpDec:
-				if (blue > 10)
-				{
-					blue -= 10;
-				}
-				else if (blue > 0)
+				if (blue > 0)
 				{
 					blue--;
 				}
@@ -340,7 +316,6 @@ static void ui_process_task(void *parm)
 			}
 		if ((led_style_old != led_style) || lightState)
 		{
-			ESP_LOGI(TAG, "Send Led%d", led_style);
 			xQueueSend(xLedQueue, &sLed, NULL);
 			led_style_old = led_style;
 		}
@@ -408,7 +383,7 @@ void app_main()
 	esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
 	esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
 
-	wifi_init();
 	nvs_flash_init();
+	wifi_init();
 	mqtt_app_start();
 }

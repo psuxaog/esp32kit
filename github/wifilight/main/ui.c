@@ -18,8 +18,8 @@ static xQueueHandle *xKey_Queue;
 static xQueueHandle *xLed_Queue;
 esp_timer_handle_t timerHandle = NULL;
 static void timerPeriodicCb(void *arg);
-esp_timer_create_args_t timerPeriodicArg =
-{ .callback = &timerPeriodicCb, .arg = NULL, .name = "Timer" };
+esp_timer_create_args_t timerPeriodicArg = { .callback = &timerPeriodicCb,
+    .arg = NULL, .name = "Timer" };
 
 static eKey_t eGetKey(void)
 {
@@ -144,7 +144,7 @@ static void vLedProcess(sLed_t *psLed, uint8_t uUpdated)
 	static uint8_t ucIdx = 0;
 	uint8_t i = 0;
 	switch (psLed->eLedMod)
-	{
+		{
 	case eLedModOff:
 		usCnt = 0;
 		usCntMax = 0;
@@ -241,7 +241,7 @@ static void vLedProcess(sLed_t *psLed, uint8_t uUpdated)
 		usCntMax = 0;
 		ucIdx = 0;
 		break;
-	}
+		}
 	usCnt++;
 }
 void vUI_Task(void *parm)
@@ -275,39 +275,41 @@ void vUI_SetLedQueue(xQueueHandle *queue)
 {
 	xLed_Queue = queue;
 }
-eKey_t const eKeys[][4] =
-{
-{ eKeyLeftInc, eKeyLeftDec, eKeyLeftDec, eKeyLeftInc },
-{ eKeyRightInc, eKeyRightDec, eKeyRightDec, eKeyRightInc },
-{ eKeyUpInc, eKeyUpDec, eKeyUpDec, eKeyUpInc }, };
-gpio_num_t const KeyIOTable[] =
-{ KEY_LEFT_IO_B, KEY_LEFT_IO_A, KEY_RIGHT_IO_B, KEY_RIGHT_IO_A, KEY_UP_IO_B,
+eKey_t const eKeys[][4] = { { eKeyUpDec, eKeyUpInc, eKeyUpInc, eKeyUpDec }, {
+    eKeyRightInc, eKeyRightDec, eKeyRightDec, eKeyRightInc }, { eKeyLeftInc,
+    eKeyLeftDec, eKeyLeftDec, eKeyLeftInc }, };
+gpio_num_t const KeyIOTable[] = { KEY_LEFT_IO_B, KEY_LEFT_IO_A, KEY_RIGHT_IO_B,
+KEY_RIGHT_IO_A, KEY_UP_IO_B,
 KEY_UP_IO_A };
 static void timerPeriodicCb(void *arg)
 {
 	eKey_t eKey = eKeyNone; // @suppress("Symbol is not resolved")
 	static uint8_t cntFilter = 0;
 	static uint8_t keyOld = 0;
+	static uint8_t init = 0;
 	uint8_t keyCur = 0;
 	uint8_t i;
 	keyCur = 0;
-	for (i = 0; i < sizeof(KeyIOTable); i++)
+	for (i = 0; i < 6; i++)
 	{
-		keyCur |= gpio_get_level(KeyIOTable[i]);
 		keyCur <<= 1;
+		keyCur |= gpio_get_level(KeyIOTable[i]);
 	}
 	if (keyCur != keyOld)
 	{
 		cntFilter++;
-		if (cntFilter > 10)
+		if (cntFilter > 5)
 		{
-			for (i = 0; i < sizeof(eKeys) / 4; i++)
+			for (i = 0; i < 3; i++)
 			{
-				if ((keyOld & (0x01 << (i * 2)))
-						!= (keyCur & (0x01 << (i * 2))))
+				if ((keyOld & (0x01 << (i * 2))) != (keyCur & (0x01 << (i * 2))))
 				{
 					eKey = eKeys[i][(keyOld >> (i * 2)) & 0x03];
-					xQueueSendFromISR(*xKey_Queue, &eKey, NULL);
+					if (init)
+					{
+						xQueueSendFromISR(*xKey_Queue, &eKey, NULL);
+					}
+					init = 1;
 				}
 			}
 			keyOld = keyCur;

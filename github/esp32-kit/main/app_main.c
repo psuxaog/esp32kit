@@ -34,18 +34,15 @@ const int ESPTOUCH_DONE_BIT = BIT3;
 const int ESPTOUCH_START = BIT4;
 typedef enum
 {
-	SmartCfgNone,
-	SmartCfgStp1,
-	SmartCfgStp2,
-	SmartCfgOver,
-}SmartCfg_t;
-static SmartCfg_t SmartCfg=SmartCfgNone;
+	SmartCfgNone, SmartCfgStp1, SmartCfgStp2, SmartCfgOver,
+} SmartCfg_t;
+static SmartCfg_t SmartCfg = SmartCfgNone;
 xQueueHandle xKeyQueue;
 
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {
 	switch (status)
-		{
+	{
 	case SC_STATUS_WAIT:
 		ESP_LOGI(TAG, "SC_STATUS_WAIT");
 		break;
@@ -75,7 +72,7 @@ static void sc_callback(smartconfig_status_t status, void *pdata)
 		if (pdata != NULL)
 		{
 			ESP_LOGI(TAG, "phone ip : %d.%d.%d.%d\n", phone_ip[0], phone_ip[1],
-			    phone_ip[2], phone_ip[3]);
+					phone_ip[2], phone_ip[3]);
 		}
 		SmartCfg = SmartCfgOver;
 		OLED_Print("SMART OVER");
@@ -83,7 +80,7 @@ static void sc_callback(smartconfig_status_t status, void *pdata)
 		break;
 	default:
 		break;
-		}
+	}
 }
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
@@ -91,11 +88,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 	int msg_id;
 	// your_context_t *context = event->context;
 	switch (event->event_id)
-		{
+	{
 	case MQTT_EVENT_CONNECTED:
 		ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
 		OLED_Print("MQTT_EVENT_CONNECTED");
-		msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
+		msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1,
+				0);
 		ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 
 		msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
@@ -116,7 +114,8 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 	case MQTT_EVENT_SUBSCRIBED:
 		ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-		msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
+		msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0,
+				0);
 		ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 		break;
 	case MQTT_EVENT_UNSUBSCRIBED:
@@ -136,14 +135,14 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 	case MQTT_EVENT_ERROR:
 		ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
 		break;
-		}
+	}
 	return ESP_OK;
 }
 
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
 	switch (event->event_id)
-		{
+	{
 	case SYSTEM_EVENT_STA_START:
 		esp_wifi_connect();
 		break;
@@ -166,7 +165,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 		break;
 	default:
 		break;
-		}
+	}
 	return ESP_OK;
 }
 static void wifi_init(void)
@@ -177,11 +176,12 @@ static void wifi_init(void)
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT()
 	;
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));
 	wifi_config_t wifi_config;
 	ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config));
 	wifi_config.sta.scan_method = WIFI_FAST_SCAN;
-	ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
+	ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...",
+			wifi_config.sta.ssid);
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
 	ESP_ERROR_CHECK(esp_wifi_set_auto_connect(true));
@@ -195,34 +195,54 @@ static void wifi_init(void)
 static void ui_process_task(void *parm)
 {
 	eKey_t eKey = eKeyNone;
+	uint8_t demoVal = 0;
 	for (;;)
 	{
 		if (xQueueReceive(xKeyQueue, &eKey, NULL))
 		{
+			char tmp[18];
 			switch (eKey)
-				{
+			{
 			case eKeyAllLong:
 				ESP_LOGI(TAG, "eKeyAllLong");
 				if (SmartCfg == SmartCfgNone)
 				{
 					ESP_ERROR_CHECK(esp_wifi_disconnect());
 					vTaskDelay(10 / portTICK_PERIOD_MS);
-					xTaskCreate(smartconfig_example_task, "smartconfig_example_task",
-					    4096,
-					    NULL, 3, NULL);
+					xTaskCreate(smartconfig_example_task,
+							"smartconfig_example_task", 4096,
+							NULL, 3, NULL);
 					OLED_Print("SMART CONFIG START...");
 					SmartCfg = SmartCfgStp1;
 				}
 				break;
 			case eKeyWheelInc:
-				ESP_LOGI(TAG,"Wheel INC +++");
+//				ESP_LOGI(TAG,"Wheel INC +++");
+				if (demoVal < 255)
+				{
+					demoVal++;
+					sprintf(tmp, "WHEEL VALUE:%d", demoVal);
+					OLED_DrawAscString8x16(0, OLED_YSIZE - 16,
+							"WHEEL VALUE:     ", 1);
+					OLED_DrawAscString8x16(0, OLED_YSIZE - 16, tmp, 1);
+					OLED_UpdateScreen();
+				}
 				break;
 			case eKeyWheelDec:
-				ESP_LOGI(TAG,"Wheel DEC");
+//				ESP_LOGI(TAG,"Wheel DEC");
+				if (demoVal > 0)
+				{
+					demoVal--;
+					sprintf(tmp, "WHEEL VALUE:%d", demoVal);
+					OLED_DrawAscString8x16(0, OLED_YSIZE - 16,
+							"WHEEL VALUE:     ", 1);
+					OLED_DrawAscString8x16(0, OLED_YSIZE - 16, tmp, 1);
+					OLED_UpdateScreen();
+				}
 				break;
 			default:
 				break;
-				}
+			}
 		}
 		vTaskDelay(10 / portTICK_PERIOD_MS);
 	}
@@ -236,9 +256,8 @@ void smartconfig_example_task(void *parm)
 	while (1)
 	{
 		uxBits = xEventGroupWaitBits(wifi_event_group,
-		    CONNECTED_BIT | ESPTOUCH_DONE_BIT, true,
-		    false,
-		    portMAX_DELAY);
+				CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false,
+				portMAX_DELAY);
 		if (uxBits & CONNECTED_BIT)
 		{
 			ESP_LOGI(TAG, "WiFi Connected to ap");
@@ -255,12 +274,13 @@ void smartconfig_example_task(void *parm)
 }
 static void mqtt_app_start(void)
 {
-	esp_mqtt_client_config_t mqtt_cfg = { .host = "39.108.162.165", .port = 1883,
-	    .lwt_topic = "windows", .event_handle = mqtt_event_handler, .username =
-	        "admin", .password = "public",
+	esp_mqtt_client_config_t mqtt_cfg =
+	{ .host = "39.108.162.165", .port = 1883, .lwt_topic = "windows",
+			.event_handle = mqtt_event_handler, .username = "admin", .password =
+					"public",
 
 // .user_context = (void *)your_context
-	    };
+			};
 
 	esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 	esp_mqtt_client_start(client);
@@ -268,12 +288,14 @@ static void mqtt_app_start(void)
 
 void app_main()
 {
+	OLED_Init();
 	ESP_LOGI(TAG, "[APP] Startup..");
 	ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
 	ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
-	OLED_Init();
-
-	xKeyQueue = xQueueCreate(10, sizeof(eKey_t));
+	OLED_Print("Startup...");
+	OLED_Print("Free MEM:%d bytes",esp_get_free_heap_size());
+	OLED_Print("IDF version: %s", esp_get_idf_version());
+	xKeyQueue = xQueueCreate(1, sizeof(eKey_t));
 	vUI_SetKeyQueue(&xKeyQueue);
 	vUI_Init();
 	xTaskCreate(ui_process_task, "ui_process_task", 4096, NULL, 4, NULL);

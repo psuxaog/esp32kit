@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
+<<<<<<< HEAD
 	<name>esp32kit</name>
+=======
+	<name>esp32</name>
+>>>>>>> branch 'master' of https://github.com/psuxaog/esp32kit.git
 	<comment></comment>
 	<projects>
 	</projects>
